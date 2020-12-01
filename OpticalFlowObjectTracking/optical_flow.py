@@ -22,7 +22,7 @@ def applyGeometricTransformation(features, new_features, bbox, coord, H, W, N):
         bbox: Top-left and bottom-right corners of all bounding boxes, (1, 2, 2)
     Instruction: Please feel free to use skimage.transform.estimate_transform()
     """
-    dist_thresh=15
+    dist_thresh=20
     #print("shapes of new and origin and mask",new_features.shape, features.shape, mask.shape)
     new_features=new_features.reshape((1,N,-1))
     newFListNum,new_FList=extractFeaturefromFeatures(new_features)
@@ -125,7 +125,8 @@ def estimateFeatureTranslation(feature, Ix, Iy, img1, img2):
         new_feature: Coordinate of feature point in second frame, (2,)
     Instruction: Please feel free to use interp2() and getWinBound() from helpers
     """
-    winsize=15
+    winsize=25
+    
     s=(winsize+1)//2
     #print("est feature",feature)
     x=feature[0]
@@ -141,7 +142,7 @@ def estimateFeatureTranslation(feature, Ix, Iy, img1, img2):
     dx_sum=0
     dy_sum=0
     Jx,Jy=calcJxJy(Ix,Iy,xx,yy)
-    for i in range(5):
+    for i in range(50):
         dx,dy=optical_flow(img1_window,img2_window,Jx,Jy)
         dx_sum+=dx
         dy_sum+=dy
@@ -171,7 +172,7 @@ def getFeatures(img,bbox,N):
       mask = np.zeros(img.shape, dtype=np.uint8)
       mask[int(bbox[i,0,1]):int(bbox[i,1,1]), int(bbox[i,0,0]):int(bbox[i,1,0])] = 255
       mask=mask.astype(np.uint8)
-      feature = cv2.goodFeaturesToTrack(img,N,0.01,10, mask=mask)
+      feature = cv2.goodFeaturesToTrack(img,N,0.3,10, mask=mask)
       number.append(feature.shape[0])
       feature=feature.reshape(1,feature.shape[0],2)
       features[i,:feature.shape[1],:]=feature
@@ -274,7 +275,7 @@ def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,W,H):
       print("****** bbox lost****")
       eraseObject=True
       #temporary: not going to generate new bounding box
-      return False, x, new_features,bbox, eraseObject
+      #return False, x, new_features,bbox, eraseObject
       print("BBOX shape,",bbox.shape)
       bbox_w=bbox[1,0]-bbox[0,0]
       bbox_h=bbox[1,1]-bbox[0,1]
@@ -285,7 +286,7 @@ def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,W,H):
       elif bbox[1,0]==W or bbox[1,1]==H:
         print("bbox out of bound")
         return False, x, new_features, bbox, eraseObject
-      elif bboc[0,0]==0 or bbox[0,1]==0:
+      elif bbox[0,0]==0 or bbox[0,1]==0:
         print("bbox out of bound")
         return False, x, new_features, bbox, eraseObject
       #use old bbox to generate new features
@@ -334,7 +335,9 @@ def transformMask2(initFeatureNum,frame,frame_old,all_featNum,all_features,all_b
     features=features.astype(np.float32)
     tmp_new_features, st, err = cv2.calcOpticalFlowPyrLK(frame_old.astype(np.uint8), frame.astype(np.uint8), features.reshape(N,1,2), None, **LKparam)
     good_new = tmp_new_features[st==1]
-    print("GOOD NEW FEATURES:",good_new)
+    print("GOOD NEW FEATURES:",tmp_new_features)
+    print("ST",st)
+    print("ERR",err)
     if good_new.shape[0]==0:
       tmp_new_features=features
     else:
