@@ -171,8 +171,14 @@ def getFeatures(img,bbox,N):
     for i in range(numOfBboxes):
       mask = np.zeros(img.shape, dtype=np.uint8)
       mask[int(bbox[i,0,1]):int(bbox[i,1,1]), int(bbox[i,0,0]):int(bbox[i,1,0])] = 255
+      #mask=masks[i]
+      #mask=np.where(mask==1,255,0)
       mask=mask.astype(np.uint8)
       feature = cv2.goodFeaturesToTrack(img,N,0.3,10, mask=mask)
+      if feature is None:
+        feature=np.array([0,0,0,0,0,0,0,0,0,0])
+        feature=feature.reshape(5,1,2)
+        print("Nonetype returned")
       number.append(feature.shape[0])
       feature=feature.reshape(1,feature.shape[0],2)
       features[i,:feature.shape[1],:]=feature
@@ -275,7 +281,7 @@ def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,W,H):
       print("****** bbox lost****")
       eraseObject=True
       #temporary: not going to generate new bounding box
-      #return False, x, new_features,bbox, eraseObject
+      return False, x, new_features,bbox, eraseObject
       print("BBOX shape,",bbox.shape)
       bbox_w=bbox[1,0]-bbox[0,0]
       bbox_h=bbox[1,1]-bbox[0,1]
@@ -290,13 +296,13 @@ def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,W,H):
         print("bbox out of bound")
         return False, x, new_features, bbox, eraseObject
       #use old bbox to generate new features
-      x,new_features = getFeatures(frame, old_bbox)
+      x,new_features = getFeatures(frame, old_bbox,N)
 
   return True, x, new_features, bbox, eraseObject
 
 def generateMaskWithCoordinates(mask_coords,W,H):
   """
-  generate mask (H,W) by filling zeros to given mask coordinates 
+  generate mask (H,W) by filling ones to given mask coordinates 
   """
   new_mask=np.zeros((H,W))
   mask_coords=mask_coords.reshape(-1,2)
@@ -306,6 +312,28 @@ def generateMaskWithCoordinates(mask_coords,W,H):
     if (mask_coords[i,0]>0 and mask_coords[i,0]<=W and mask_coords[i,1]>0 and mask_coords[i,1]<=H):
       new_mask[int(mask_coords[i,1]),int(mask_coords[i,0])]=1
   return new_mask
+  
+  
+def generateAllMasksWithCoordinates(all_mask_coords,W,H):
+  """
+  generate all masks (H,W) by filling ones to given mask coordinates 
+  """
+  numOfmasks=all_mask_coords.shape[0]
+  print("ALL coords",all_mask_coords.shape)
+  masks=[]
+  for i in range(numOfmasks):
+      new_mask=np.zeros((H,W))
+      mask_coords=all_mask_coords[i]
+      mask_coords=mask_coords.reshape(-1,2)
+      numArr=np.count_nonzero(mask_coords,axis=0)
+      num=np.max(numArr)
+      for i in range(num):
+        if (mask_coords[i,0]>0 and mask_coords[i,0]<=W and mask_coords[i,1]>0 and mask_coords[i,1]<=H):
+          new_mask[int(mask_coords[i,1]),int(mask_coords[i,0])]=1
+      masks.append(new_mask)
+  masks=np.array(masks)
+  masks=masks.reshape(numOfmasks,H,W)
+  return masks
 
 def generateCoordinatesOfMask(mask,W,H):
   """
