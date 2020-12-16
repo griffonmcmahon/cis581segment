@@ -8,7 +8,7 @@ Having this folder on your computer is almost enough, but the model used for seg
 Click the Download icon in the top right. This should let you download "Highres.pth".
 Place Highres.pth in the "./model/" folder.
 
-Also, ensure you have the Python packages listed in requirements.txt. Note that, as this project uses Detectron2, **running on OS X or Linux is recommended**.
+Also, ensure you have the Python packages listed in requirements.txt. Note that, as this project uses Detectron2, **running on Linux or OS X is recommended**.
 
 ### Usage
 1. Place an input video into the "input_videos" directory.
@@ -27,7 +27,7 @@ Also, ensure you have the Python packages listed in requirements.txt. Note that,
 * ./input_videos/: Contains .mp4 files to run the script with. We recommend "Easy.mp4".
 * ./model/: Contains the neural network model used to make predictions. Must be downloaded as noted in "Installation".
 * ./output_videos/: Contains a folder for each video given to the script. 
-	For example, the results from running the script on Easy.mp4 will be stored in ../output_videos/Easy/".
+	For example, the results from running the script on Easy.mp4 will be stored in ./output_videos/Easy/".
 * helpers.py: Contains helper functions for optical flow.
 * main.py: The main part of the script. Run this to use the script.
 * optical_flow.py: Contains most of the optical flow code converted from Project 4.5.
