@@ -32,8 +32,8 @@ def applyGeometricTransformation(features, new_features, bbox, coord, H, W, N):
     nonZeroFListNum,nonZeroFList=extractNonZeroFeature(FList)
     tmp_bbox = np.reshape(bbox,(2,-1))
     idx_range=new_nonZeroFListNum
-    print("Similarity Transform")
-    print("Before transforming: Non zero ",nonZeroFList,"New non zero",new_nonZeroFList, "Bbox:",tmp_bbox)
+    #print("Similarity Transform")
+    #print("Before transforming: Non zero ",nonZeroFList,"New non zero",new_nonZeroFList, "Bbox:",tmp_bbox)
     transform = SimilarityTransform()
     transformation=transform.estimate(nonZeroFList,new_nonZeroFList)
     
@@ -49,7 +49,7 @@ def applyGeometricTransformation(features, new_features, bbox, coord, H, W, N):
             new_nonZeroFList[idx,:]=np.array([0,0])
 
     numArr=np.count_nonzero(coord,axis=0)
-    print("COUNT non zeros",numArr)
+    #print("COUNT non zeros",numArr)
     num=np.max(numArr)
     # mask_coords=np.zeros((num,2))
     new_mask_coords=np.zeros((W*H,2))
@@ -59,7 +59,7 @@ def applyGeometricTransformation(features, new_features, bbox, coord, H, W, N):
         new_tmp_bbox=matrix_transform(tmp_bbox,homoMatrix)
         tmp_bbox=new_tmp_bbox
         if tmp_bbox[1][0] > W:
-          print("tmp box range change",tmp_bbox)
+          #print("tmp box range change",tmp_bbox)
           tmp_bbox[1][0]=W
         if tmp_bbox[1][1] > H:
           tmp_bbox[1][1]=H
@@ -79,7 +79,7 @@ def applyGeometricTransformation(features, new_features, bbox, coord, H, W, N):
         new_tmp_bbox_y2=tmp_bbox[1][1]
         if new_nonZeroFList[idx][0] < new_tmp_bbox_x1 or new_nonZeroFList[idx][1]<new_tmp_bbox_y1 or new_nonZeroFList[idx][0]>new_tmp_bbox_x2 or new_nonZeroFList[idx][1]>new_tmp_bbox_y2:
             new_nonZeroFList[idx]=[0,0]
-    print("After Transformation: Nonzero ",new_nonZeroFList,"BBox ", tmp_bbox)
+    #print("After Transformation: Nonzero ",new_nonZeroFList,"BBox ", tmp_bbox)
     new_bbox=new_tmp_bbox.reshape(1,2,2)
     features_fillzeros=np.zeros((FListNum,2))
 
@@ -178,7 +178,7 @@ def getFeatures(img,bbox,N):
       if feature is None:
         feature=np.array([0,0,0,0,0,0,0,0,0,0])
         feature=feature.reshape(5,1,2)
-        print("Nonetype returned")
+        #print("Nonetype returned")
       number.append(feature.shape[0])
       feature=feature.reshape(1,feature.shape[0],2)
       features[i,:feature.shape[1],:]=feature
@@ -249,15 +249,15 @@ def extractNonZeroFeature(featureList):
     return nonZeroFeatureNum,nonZero_feature
 
 def transformMask(initFeatureNum,frame,frame_old,all_featNum,all_features,all_bboxes,all_coords,all_classes,features,old_bbox,old_coord,old_classes,H,W,N):
-    print("Transform mask: feature points",all_features.shape)
+    #print("Transform mask: feature points",all_features.shape)
     tmp_new_features=estimateAllTranslation(features,frame_old,frame)
     tmp_new_features=np.where(tmp_new_features<0,0,tmp_new_features)
     old_coord=old_coord.reshape(H*W,2)
     tmp_features, bbox, coord = applyGeometricTransformation(features,tmp_new_features,old_bbox,old_coord,H,W,N)
     tmp_features=np.where(tmp_features<0,0,tmp_features)
-    add,initFeatureNum,tmp_features,bbox, eraseObject=generateMoreFeatures(initFeatureNum,frame, tmp_features,old_bbox,bbox,W,H)
+    add,initFeatureNum,tmp_features,bbox, eraseObject=generateMoreFeatures(initFeatureNum,frame, tmp_features,old_bbox,bbox,W,H,N)
     if add==True:
-      print("ALLFEAT",all_features.shape, tmp_features.shape)
+      #print("ALLFEAT",all_features.shape, tmp_features.shape)
       all_features=np.append(all_features,tmp_features.reshape(1,N,2))
       all_bboxes=np.append(all_bboxes,bbox)
       all_coords=np.append(all_coords,coord)
@@ -265,7 +265,7 @@ def transformMask(initFeatureNum,frame,frame_old,all_featNum,all_features,all_bb
       all_featNum.append(initFeatureNum)
     return all_featNum,all_features,all_bboxes,coord,all_coords,all_classes, eraseObject
 
-def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,W,H):
+def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,W,H,N):
   """
   delete bbox if the object disappears 
   if the features are less than the 60% of the initial number of features, new features will be generated
@@ -276,24 +276,24 @@ def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,W,H):
   bbox=bbox.reshape(2,2)
   x=initFeatureNum
   eraseObject=False
-  print("feature number",initFeatureNum)
+  #print("feature number",initFeatureNum)
   if remainNumOfFList < initFeatureNum * 0.6:
-      print("****** bbox lost****")
+      #print("****** bbox lost****")
       eraseObject=True
       #temporary: not going to generate new bounding box
       return False, x, new_features,bbox, eraseObject
-      print("BBOX shape,",bbox.shape)
+      #print("BBOX shape,",bbox.shape)
       bbox_w=bbox[1,0]-bbox[0,0]
       bbox_h=bbox[1,1]-bbox[0,1]
-      print("BBOX\n",bbox, bbox_w,bbox_h)
+      #print("BBOX\n",bbox, bbox_w,bbox_h)
       if bbox_w<10 or bbox_h <10:
-        print("bbox too small")
+        #print("bbox too small")
         return False, x, new_features, bbox, eraseObject
       elif bbox[1,0]==W or bbox[1,1]==H:
-        print("bbox out of bound")
+        #print("bbox out of bound")
         return False, x, new_features, bbox, eraseObject
       elif bbox[0,0]==0 or bbox[0,1]==0:
-        print("bbox out of bound")
+        #print("bbox out of bound")
         return False, x, new_features, bbox, eraseObject
       #use old bbox to generate new features
       x,new_features = getFeatures(frame, old_bbox,N)
@@ -314,26 +314,26 @@ def generateMaskWithCoordinates(mask_coords,W,H):
   return new_mask
   
   
-def generateAllMasksWithCoordinates(all_mask_coords,W,H):
-  """
-  generate all masks (H,W) by filling ones to given mask coordinates 
-  """
-  numOfmasks=all_mask_coords.shape[0]
-  print("ALL coords",all_mask_coords.shape)
-  masks=[]
-  for i in range(numOfmasks):
-      new_mask=np.zeros((H,W))
-      mask_coords=all_mask_coords[i]
-      mask_coords=mask_coords.reshape(-1,2)
-      numArr=np.count_nonzero(mask_coords,axis=0)
-      num=np.max(numArr)
-      for i in range(num):
-        if (mask_coords[i,0]>0 and mask_coords[i,0]<=W and mask_coords[i,1]>0 and mask_coords[i,1]<=H):
-          new_mask[int(mask_coords[i,1]),int(mask_coords[i,0])]=1
-      masks.append(new_mask)
-  masks=np.array(masks)
-  masks=masks.reshape(numOfmasks,H,W)
-  return masks
+# def generateAllMasksWithCoordinates(all_mask_coords,W,H):
+#   """
+#   generate all masks (H,W) by filling ones to given mask coordinates 
+#   """
+#   numOfmasks=all_mask_coords.shape[0]
+#   print("ALL coords",all_mask_coords.shape)
+#   masks=[]
+#   for i in range(numOfmasks):
+#       new_mask=np.zeros((H,W))
+#       mask_coords=all_mask_coords[i]
+#       mask_coords=mask_coords.reshape(-1,2)
+#       numArr=np.count_nonzero(mask_coords,axis=0)
+#       num=np.max(numArr)
+#       for i in range(num):
+#         if (mask_coords[i,0]>0 and mask_coords[i,0]<=W and mask_coords[i,1]>0 and mask_coords[i,1]<=H):
+#           new_mask[int(mask_coords[i,1]),int(mask_coords[i,0])]=1
+#       masks.append(new_mask)
+#   masks=np.array(masks)
+#   masks=masks.reshape(numOfmasks,H,W)
+#   return masks
 
 def generateCoordinatesOfMask(mask,W,H):
   """
@@ -346,7 +346,7 @@ def generateCoordinatesOfMask(mask,W,H):
 
 def generateAllCoordinates(masks, W,H):
   """
-   generate coordinates multiple masks
+    generate coordinates multiple masks
   """
   num=masks.shape[0]
   coords=np.array([])
@@ -355,32 +355,32 @@ def generateAllCoordinates(masks, W,H):
   coords=coords.reshape(num,H*W,2)
   return coords
 
-def transformMask2(initFeatureNum,frame,frame_old,all_featNum,all_features,all_bboxes,all_coords,all_classes,features,old_bbox,old_coord,old_classes,H,W,N, LKparam):
-    print("Transform mask: feature points",features)
-    #tmp_new_features=estimateAllTranslation(features,frame_old,frame)
-    # frame_old=np.asarray(frame_old,dtype="float32")
-    # frame=np.asarray(frame,dtype="float32")
-    features=features.astype(np.float32)
-    tmp_new_features, st, err = cv2.calcOpticalFlowPyrLK(frame_old.astype(np.uint8), frame.astype(np.uint8), features.reshape(N,1,2), None, **LKparam)
-    good_new = tmp_new_features[st==1]
-    print("GOOD NEW FEATURES:",tmp_new_features)
-    print("ST",st)
-    print("ERR",err)
-    if good_new.shape[0]==0:
-      tmp_new_features=features
-    else:
-      tmp_new_features=good_new.reshape(1,N,2)
-    tmp_new_features=np.where(tmp_new_features<0,0,tmp_new_features)
-    old_coord=old_coord.reshape(H*W,2)
-    tmp_features, bbox, coord = applyGeometricTransformation(features,tmp_new_features,old_bbox,old_coord,H,W,N)
-    tmp_features=np.where(tmp_features<0,0,tmp_features)
-    add,initFeatureNum,tmp_features,bbox, eraseObject=generateMoreFeatures(initFeatureNum,frame, tmp_features,old_bbox,bbox,W,H)
-    if add==True:
-      print("ALLFEAT",all_features.shape, tmp_features.shape)
-      all_features=np.append(all_features,tmp_features.reshape(1,N,2))
-      all_bboxes=np.append(all_bboxes,bbox)
-      all_coords=np.append(all_coords,coord)
-      all_classes.append(old_classes)
-      all_featNum.append(initFeatureNum)
-    return all_featNum,all_features,all_bboxes,coord,all_coords,all_classes, eraseObject
+# def transformMask2(initFeatureNum,frame,frame_old,all_featNum,all_features,all_bboxes,all_coords,all_classes,features,old_bbox,old_coord,old_classes,H,W,N, LKparam):
+#     print("Transform mask: feature points",features)
+#     #tmp_new_features=estimateAllTranslation(features,frame_old,frame)
+#     # frame_old=np.asarray(frame_old,dtype="float32")
+#     # frame=np.asarray(frame,dtype="float32")
+#     features=features.astype(np.float32)
+#     tmp_new_features, st, err = cv2.calcOpticalFlowPyrLK(frame_old.astype(np.uint8), frame.astype(np.uint8), features.reshape(N,1,2), None, **LKparam)
+#     good_new = tmp_new_features[st==1]
+#     print("GOOD NEW FEATURES:",tmp_new_features)
+#     print("ST",st)
+#     print("ERR",err)
+#     if good_new.shape[0]==0:
+#       tmp_new_features=features
+#     else:
+#       tmp_new_features=good_new.reshape(1,N,2)
+#     tmp_new_features=np.where(tmp_new_features<0,0,tmp_new_features)
+#     old_coord=old_coord.reshape(H*W,2)
+#     tmp_features, bbox, coord = applyGeometricTransformation(features,tmp_new_features,old_bbox,old_coord,H,W,N)
+#     tmp_features=np.where(tmp_features<0,0,tmp_features)
+#     add,initFeatureNum,tmp_features,bbox, eraseObject=generateMoreFeatures(initFeatureNum,frame, tmp_features,old_bbox,bbox,W,H)
+#     if add==True:
+#       print("ALLFEAT",all_features.shape, tmp_features.shape)
+#       all_features=np.append(all_features,tmp_features.reshape(1,N,2))
+#       all_bboxes=np.append(all_bboxes,bbox)
+#       all_coords=np.append(all_coords,coord)
+#       all_classes.append(old_classes)
+#       all_featNum.append(initFeatureNum)
+#     return all_featNum,all_features,all_bboxes,coord,all_coords,all_classes, eraseObject
 
