@@ -3,3 +3,4 @@ model/Highres.pth
 model/lowsamplnumb.pth
 __pycache__/helpers.cpython-37.pyc
 __pycache__/optical_flow.cpython-37.pyc
+*.bak

@@ -1,7 +1,9 @@
 # CIS 581 Final Project: Team 21
 ### Nicholas Marion, Griffon McMahon, Jean Park, Meiwen Zhou
 
-This program will apply image segmentation enhanced with optical flow to an input video.
+This program will apply image segmentation enhanced with optical flow to the first 100 frames of an input video.
+
+You can find the GitHub repository for our code at [this link](https://github.com/griffonmcmahon/cis581segment).
 
 ### Installation
 Having this folder on your computer is almost enough, but the model used for segmentation must be downloaded from [this Google Drive link](https://drive.google.com/u/1/uc?id=1kq3SmHFd9kNIxelKBt5Q-y_R4xZYf6qs&export=download).

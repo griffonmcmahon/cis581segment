@@ -186,6 +186,8 @@ def classifyVideo(rawVideo):
     old_masks=[]
     old_coords=np.array([])
     initNF=[]
+    id_list=np.array([])
+    count=0
 
 
     while (cap.isOpened()):
@@ -215,9 +217,11 @@ def classifyVideo(rawVideo):
         
         #put mask on frame using detectron2 visualizer
         for i in range(count[0]):
+            class_num=outputs["instances"].pred_classes[i]
+            if class_num != 3 and class_num!= 0:
+                continue
             mask=outputs["instances"].to("cpu").pred_masks.numpy()[i].astype(int)*(i+1)
             #use current instance's class id to get corresponding color
-            class_num=outputs["instances"].pred_classes[i]
             color=colors[class_num]
             for n in range(3):
                 vis[:, :, n] = np.where(mask!= 0, (vis[:, :, n] * 0.5 + 0.5*color[n]),vis[:, :, n])
@@ -232,32 +236,30 @@ def classifyVideo(rawVideo):
             num=bboxes.shape[0]
             bboxes=bboxes.reshape(num,2,2)
             masks=masks.reshape(num,H,W)
+            old_masks, old_bboxes, old_classes, old_count, id_list = getCarAndHuman(masks,bboxes,classes,count[0],0,N,H,W)
             initNF,features=getFeatures(frame,bboxes,N)
-            old_classes=outputs["instances"].to("cpu").pred_classes.numpy()
-            old_bboxes=bboxes
-            old_masks=masks
             old_coords=generateAllCoordinates(old_masks,W,H)
             old_count=count[0]
         else:
             all_count=0
-            all_bboxes,all_masks,all_features,all_masks,all_coords,all_classes = np.array([]),np.array([]),np.array([]),np.array([]),np.array([]),[]
+            all_bboxes,all_masks,all_features,all_coords,all_classes = np.array([]),np.array([]),np.array([]),np.array([]),[]
             all_featNum=[]
-            """
-            #keep tracking objects that were detected in the first frame
-            for k in range(old_count):
-              print("FOR")
-              all_featNum,all_features,all_bboxes, coord,all_coords,all_classes, eraseObject=transformMask(initNF[k],frame,frame_old,all_featNum, all_features,all_bboxes,all_coords,all_classes,features[k],old_bboxes[k],old_coords[k],old_classes[k],H,W,N)
-            features=all_features
-            old_bboxes=all_bboxes
-            old_coords=all_coords
-            old_classes=all_classes
-            """
-            #current frame's class dictionary -> key: class, value: number of class
+            all_id = np.array([])
+
+            bboxes = outputs["instances"].to("cpu").pred_boxes.tensor.numpy()
+            num=bboxes.shape[0]
+            bboxes=bboxes.reshape(num,2,2)
+            masks=outputs["instanes"].to("cpu").pred_masks.numpy()
+            masks = masks.reshape(count[0],H,W)
             new_classes=outputs["instances"].to("cpu").pred_classes.numpy()
+            masks, bboxes, new_classes, newcount, newid_list = getCarAndHuman(masks,bboxes,new_classes,count[0],np.amax(id_list),N,H,W)
+            tmp_num,tmp_features=getFeatures(frame,bboxes,N)
+            tmp_coords=generateAllCoordinates(masks,W,H)
+            #current frame's class dictionary -> key: class, value: number of class
             unique, counts = np.unique(new_classes, return_counts=True)
             dictC=dict(zip(unique, counts))
             # print("ALL classes",all_classes)
-            print("old count",old_count," and count",count)
+            print("old count",old_count," and count",newCount)
             print("old classes",old_classes)
             # try to iterate through all the previously identified objects
             for k in range(old_count):
@@ -269,7 +271,8 @@ def classifyVideo(rawVideo):
                 if old_classes[k] not in new_classes:
                     #class from previous frames are not detected in current frame -> optical flow to generate mask
                     print("class",old_classes[k]," not found")
-                    all_featNum,all_features,all_bboxes, coord,all_coords,all_classes, eraseObject=transformMask(initNF[k],frame,frame_old,all_featNum, all_features,all_bboxes,all_coords,all_classes,features[k],old_bboxes[k],old_coords[k],old_classes[k],H,W,N)
+                    #all_featNum,all_features,all_bboxes, coord,all_coords,all_classes, eraseObject=transformMask(initNF[k],frame,frame_old,all_featNum, all_features,all_bboxes,all_coords,all_classes,features[k],old_bboxes[k],old_coords[k],old_classes[k],H,W,N)
+                    all_featNum,all_features,all_bboxes, coord,all_coords,all_classes, all_id, eraseObject=transformMask(initNF[k],frame,frame_old,all_featNum, all_features,all_bboxes,all_coords,all_classes,all_id,features[k],old_bboxes[k],old_coords[k],old_classes[k],id_list[k],H,W,N)
                     
                     #all_featNum,all_features,all_bboxes, coord,all_coords,all_classes, eraseObject=transformMask(initNF[k],frame,frame_old,all_featNum, all_features,all_bboxes,all_coords,all_classes,features[k],old_bboxes[k],old_coords[k],old_classes[k],H,W,N,lk_params)
                     
@@ -282,21 +285,42 @@ def classifyVideo(rawVideo):
                             vis[:, :, n] = np.where(mask!= 0, (vis[:, :, n] * 0.5 + 0.5*color[n]),vis[:, :, n])
                         all_count+=1
                     continue
-                for j in range(count[0]):
+                for j in range(newcount):
+                    checkId=False
+                    if new_classes[j] != 3 and new_classes[j] != 9:
+                        continue
                     class_num=new_classes[j]
-                    mask=outputs["instances"].to("cpu").pred_masks.numpy()[j].astype(int)*(j+1)
+                    #mask=outputs["instances"].to("cpu").pred_masks.numpy()[j].astype(int)*(j+1)
                     #print("DICT",dictC )
                     #print("Class Num:",class_num,type(class_num))
                     #print("get",dictC.get(class_num.item())," K",k)
                     if old_classes[k]==class_num:
                         old_mask=generateMaskWithCoordinates(old_coords[k],W,H)
-                        intersect=np.logical_and(old_mask,mask)
+                        intersect=np.logical_and(old_mask,masks[j])
                         interNum=np.count_nonzero(intersect)
                         maskNum=np.count_nonzero(old_mask)
+                        newmaskNum=np.count_nonzero(masks[j])
                         #print("InterNum ",interNum," maskNum ",maskNum)
-                        if interNum>=0.5*maskNum:
+                        if maskNum==0:
+                            continue
+                        if interNum>=0.7*maskNum:
                             print("masks overlap")
-                            break
+                            print("matching id",id_list[k])
+                            # add to list
+                            all_id = np.append(all_id,id_list[k])
+                            all_classes.append(class_num)
+                            tmp_bbox=bboxes[j].reshape(1,2,2)
+                            all_bboxes=np.append(all_bboxes,tmp_bbox)
+                            mask=masks[j]
+                            mask=mask.reshape(1,H,W)
+                            all_coords=np.append(all_coords,tmp_coords[j])
+                            all_featNum.append(tmp_num[j])
+                            all_features = np.append(all_features,tmp_features[j])
+                            all_count+=1
+                            print('ADDED',all_featNum)
+                            checkId = True
+                            # fill zeros to the used mask so that it does not get used over again
+                            masks[j] = np.zeros_like(masks[j])
                         else:
                             cnt+=1
                             if (dictC.get(class_num.item())>cnt):
@@ -304,8 +328,10 @@ def classifyVideo(rawVideo):
                                 pass
                             else:
                                 print("no masks match : use optical flow to put mask on frame")
-                                all_featNum,all_features,all_bboxes, coord,all_coords,all_classes, eraseObject=transformMask(initNF[k],frame,frame_old,all_featNum, all_features,all_bboxes,all_coords,all_classes,features[k],old_bboxes[k],old_coords[k],old_classes[k],H,W,N)
-                                
+                                print('not matching id',id_list[k])
+                                #all_featNum,all_features,all_bboxes, coord,all_coords,all_classes, eraseObject=transformMask(initNF[k],frame,frame_old,all_featNum, all_features,all_bboxes,all_coords,all_classes,features[k],old_bboxes[k],old_coords[k],old_classes[k],H,W,N)
+                                all_featNum,all_features,all_bboxes, coord,all_coords,all_classes, all_id, eraseObject=transformMask(initNF[k],frame,frame_old,all_featNum, all_features,all_bboxes,all_coords,all_classes,all_id,features[k],old_bboxes[k],old_coords[k],old_classes[k],id_list[k],H,W,N)
+                                checkId=True                                
                                 #all_featNum,all_features,all_bboxes, coord,all_coords,all_classes, eraseObject=transformMask(initNF[k],frame,frame_old,all_featNum, all_features,all_bboxes,all_coords,all_classes,features[k],old_bboxes[k],old_coords[k],old_classes[k],H,W,N,lk_params)
                                 if eraseObject==False:
                                     tmp_coord=coord.reshape(H*W,2)
@@ -314,41 +340,69 @@ def classifyVideo(rawVideo):
                                     for n in range(3):
                                         vis[:, :, n] = np.where(mask!= 0, (vis[:, :, n] * 0.5 + 0.5*color[n]),vis[:, :, n])
                                     all_count+=1
+                            if checkId:
+                                newid_list[j]=0
+                                break
+            
+            print('Resulting newid_list',newid_list)
+            for i in range(newid_list.size):
+                if newid_list[i].astype(np.int8)!=0:
+                    print('Adding nonzero id to the list')
+                    all_id=np.append(all_id,newid_list[i])
+                    all_classes.append(new_classes[i])
+                    tmp_bbox=bboxes[i].reshape(1,2,2)
+                    all_bboxes=np.append(all_bboxes,tmp_bbox)
+                    mask=masks[i]
+                    mask=mask.reshape(1,H,W)
+                    all_coords=np.append(all_coords,tmp_coords[i])
+                    all_featNum.append(tmp_num[i])
+                    all_features=np.append(all_features,tmp_features[i])
+                    all_count+=1
+            
             print("Count",all_count)
             print("########save frame",frame_cnt,"###########")
-            bboxes=outputs["instances"].to("cpu").pred_boxes.tensor.numpy()
-            num=bboxes.shape[0]
-            bboxes=bboxes.reshape(num,2,2)
-            masks=outputs["instances"].to("cpu").pred_masks.numpy()
+            # bboxes=outputs["instances"].to("cpu").pred_boxes.tensor.numpy()
+            # num=bboxes.shape[0]
+            # bboxes=bboxes.reshape(num,2,2)
+            # masks=outputs["instances"].to("cpu").pred_masks.numpy()
+            
             # save the results of the previous frame needed for arrow drawing
             prev_count = old_count
             prev_bboxes= old_bboxes.copy()
             prev_classes = old_classes.copy()
             prev_coords = old_coords.copy()
             
-            if all_count>0:
-                #optical flow was used at least once, save feature points, classes, mask coordinates, bboxes from previous frames and current frame
-                old_count=all_count+count[0]
-                old_classes=np.append(np.array(all_classes),new_classes)
-                tmp_coords=generateAllCoordinates(masks,W,H)
-                old_coords=np.append(all_coords,tmp_coords)
-                old_bboxes=np.append(all_bboxes,bboxes)
-                old_coords=old_coords.reshape((old_count,H*W,2))
-                #masks=generateAllMasksWithCoordinates(old_coords,W,H)
-                numF,features=getFeatures(frame,bboxes,N)
-                initNF=np.append(all_featNum,numF)
-                features=np.append(all_features,features)
-            elif all_count==0:
-                #no optical flow was used, save only current frame's feature points, bboxes, masks, count, and classes
-                old_count=count[0]
-                tmp_coords=generateAllCoordinates(masks,W,H)
-                old_coords=np.append(all_coords,tmp_coords)
-                old_coords=old_coords.reshape((old_count,H*W,2))
-                #masks=generateAllMasksWithCoordinates(old_coords,W,H)
-                numF,features=getFeatures(frame,bboxes,N)
-                old_classes=new_classes
-                initNF=numF
-                old_bboxes=bboxes
+            old_count = all_count
+            old_coords = all_coords.reshape((old_count,H*W,2))
+            old_bboxes = all_bboxes.reshape((old_count,2,2))
+            initNF = all_featNum
+            features=all_features
+            id_list = all_id.copy()
+            old_classes = all_classes.copy()
+            
+            # if all_count>0:
+            #     #optical flow was used at least once, save feature points, classes, mask coordinates, bboxes from previous frames and current frame
+            #     old_count=all_count+count[0]
+            #     old_classes=np.append(np.array(all_classes),new_classes)
+            #     tmp_coords=generateAllCoordinates(masks,W,H)
+            #     old_coords=np.append(all_coords,tmp_coords)
+            #     old_bboxes=np.append(all_bboxes,bboxes)
+            #     old_coords=old_coords.reshape((old_count,H*W,2))
+            #     #masks=generateAllMasksWithCoordinates(old_coords,W,H)
+            #     numF,features=getFeatures(frame,bboxes,N)
+            #     initNF=np.append(all_featNum,numF)
+            #     features=np.append(all_features,features)
+            # elif all_count==0:
+            #     #no optical flow was used, save only current frame's feature points, bboxes, masks, count, and classes
+            #     old_count=count[0]
+            #     tmp_coords=generateAllCoordinates(masks,W,H)
+            #     old_coords=np.append(all_coords,tmp_coords)
+            #     old_coords=old_coords.reshape((old_count,H*W,2))
+            #     #masks=generateAllMasksWithCoordinates(old_coords,W,H)
+            #     numF,features=getFeatures(frame,bboxes,N)
+            #     old_classes=new_classes
+            #     initNF=numF
+            #     old_bboxes=bboxes
         
             # reshaping coordinates, bboxes, features
             old_coords=old_coords.reshape((old_count,H*W,2))
@@ -363,18 +417,11 @@ def classifyVideo(rawVideo):
             drawArrow(obj_idx,curr_idx,old_coords,prev_coords,old_bboxes,prev_bboxes,old_classes,prev_classes,vis,W,H)
             #drawArrow(obj_idx,curr_idx,old_coords,prev_coords,old_bboxes,prev_bboxes,old_classes,prev_classes,vis,W,H)
         #print(features)
+        print('ID List',id_list)
         # # display the bbox
         #for f in range(old_count):
         #cv2.rectangle(vis, tuple(old_bboxes[0,0].astype(np.int32)), tuple(old_bboxes[0,1].astype(np.int32)), (0,0,255), thickness=2)
-        """
-        # # display feature points
-        for f in range(old_count):
-          #if old_classes[f]!=9:
-          #  continue
-          new_FList = features[f]
-          for feat in new_FList:
-            cv2.circle(vis, tuple(feat.astype(np.int32)), 2, (0,0,255), thickness=-1)
-        """
+
         
         #save frame   
         frame_old=frame.copy()
