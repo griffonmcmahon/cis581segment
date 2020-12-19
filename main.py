@@ -40,36 +40,46 @@ predictor = DefaultPredictor(cfg)
 #%% Functions
 
 # function to draw an arrow on the frame
-def drawArrow(old_count,old_bboxes,old_classes,vis):
-    global arrow_angle, start,line_length,endpoint,intersect_loc_x,minbound,maxbound
+def drawArrow(old_count,prev_count,old_bboxes,prev_bboxes,old_classes,prev_classes,vis):
+    global minbound,maxbound,H
     
     for i in range(old_count):
         if old_classes[i]!= 3 and old_classes[i]!=9:
             continue
-        value=old_bboxes.astype(float)[i]
-        sum=np.sum(value)
-        if np.isnan(sum):
+        # a bit confusing: old is the current frame, prev is the previous frame
+        if (old_classes[i] != prev_classes[i]):
+            print('Class changed, skipping arrow')
+            # continue
+        curr_mid=old_bboxes.astype(float)[i]
+        prev_mid=prev_bboxes.astype(float)[i]
+        sum=np.sum(curr_mid)
+        prev_sum = np.sum(prev_mid)
+        if np.isnan(sum) or np.isnan(prev_sum):
             continue
-        value=value.reshape(4,1)
-        start=(int((value[2]+value[0])/2),int((value[3]+value[1])/2))
-        endpoint=(int(line_length*math.cos(np.deg2rad(arrow_angle)))+start[0],int(line_length*math.sin(np.deg2rad(arrow_angle)))+start[1])
-        line_y=100
-        x_new=(math.cos(np.deg2rad(arrow_angle)))*10+start[0]
-        y_new=-(math.sin(np.deg2rad(arrow_angle))*10)+start[1]
-        x1=start[0]
-        y1=start[1]
-        if (x1-x_new==0):
-            x_new+=0.0000001
-        if (y1-y_new==0):
-            y_new+=0.0000001  
-        slope=((y1-y_new)/(x1-x_new))
-        b=y1-(slope*x1)
-        intersect_loc_x=(100-b)/slope#(slope*line_y)+b
-        arrow_angle+=0.7   # GGMc: why add the 0.7? I thought this was just to make the arrow rotate for the initial code
-        if arrow_angle>=360:
-            arrow_angle=0
-        cv2.rectangle(vis, (int(value[0]),int(value[1])), (int(value[2]),int(value[3])), (0,100,100), 3) 
-        if intersect_loc_x > minbound and intersect_loc_x < maxbound and y_new<y1:
+        curr_mid=curr_mid.reshape(4,1)
+        prev_mid=prev_mid.reshape(4,1)
+        # find box's midpoints
+        start=(int((curr_mid[2]+curr_mid[0])/2),int((curr_mid[3]+curr_mid[1])/2))
+        prev_start=(int((prev_mid[2]+prev_mid[0])/2),int((prev_mid[3]+prev_mid[1])/2))
+        # angle between their centers
+        arrow_angle = np.arctan2(start[1]-prev_start[1],start[0]-prev_start[0])
+        # magnitude of the change
+        mag = np.linalg.norm([start[1]-prev_start[1],start[0]-prev_start[0]])
+        line_length = mag*10
+        endpoint=(int(line_length*math.cos(arrow_angle))+start[0],int(line_length*math.sin(arrow_angle))+start[1])
+        x_curr=start[0]
+        y_curr=start[1]
+        x_prev=prev_start[0]
+        y_prev=prev_start[1]
+        if (x_curr-x_prev==0):
+            x_curr+=0.0000001
+        if (y_curr-y_prev==0):
+            y_curr+=0.0000001
+        slope=((y_curr-y_prev)/(x_curr-x_prev))
+        b=y_curr-(slope*x_curr)
+        intersect_loc_x=(H-b)/slope#(slope*line_y)+b
+        cv2.rectangle(vis, (int(curr_mid[0]),int(curr_mid[1])), (int(curr_mid[2]),int(curr_mid[3])), (0,100,100), 3) 
+        if intersect_loc_x > minbound and intersect_loc_x < maxbound and y_prev<y_curr:
             cv2.arrowedLine(vis,start,endpoint,(0,0,255),2)
         else:
             cv2.arrowedLine(vis,start,endpoint,(0,255,0),2)
@@ -85,7 +95,7 @@ def classifyVideo(rawVideo):
         Instruction: Please feel free to use cv.selectROI() to manually select bounding box
 
     """
-    global arrow_angle, start,line_length,endpoint,intersect_loc_x,minbound,maxbound
+    global minbound,maxbound,H
 
     cap = cv2.VideoCapture(rawVideo)
     imgs = []
@@ -120,13 +130,7 @@ def classifyVideo(rawVideo):
     old_coords=np.array([])
     initNF=[]
 
-    #initialization for arrow setting #TODO: calculate these in draw_arrows()
-    
-    arrow_angle=0
-    start=(0,0)
-    line_length=30
-    endpoint=(0,0)
-    intersect_loc_x=10000
+
     while (cap.isOpened()):
         ret, frame = cap.read()
         if not ret: break
@@ -143,7 +147,7 @@ def classifyVideo(rawVideo):
         H,W = vis.shape[0],vis.shape[1]
         #minimum bound and maximum bound for arrow
         minbound=0.3*(W/2)
-        maxbound=(W/2)-(0.3*(W/2))
+        maxbound=(W/2)+(0.3*(W/2))
         outputs = predictor(vis)
         v = Visualizer(vis[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=0.85)
         out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
@@ -258,6 +262,11 @@ def classifyVideo(rawVideo):
             num=bboxes.shape[0]
             bboxes=bboxes.reshape(num,2,2)
             masks=outputs["instances"].to("cpu").pred_masks.numpy()
+            # save the results of the previous frame needed for arrow drawing
+            prev_count = old_count
+            prev_bboxes= old_bboxes.copy()
+            prev_classes = old_classes.copy()
+            
             if all_count>0:
                 #optical flow was used at least once, save feature points, classes, mask coordinates, bboxes from previous frames and current frame
                 old_count=all_count+count[0]
@@ -286,6 +295,9 @@ def classifyVideo(rawVideo):
             old_coords=old_coords.reshape((old_count,H*W,2))
             old_bboxes=old_bboxes.reshape((old_count,2,2))
             features=features.reshape((old_count,N,2))
+            
+            #print("BBOXES",old_bboxes)
+            drawArrow(old_count,prev_count,old_bboxes,prev_bboxes,old_classes,prev_classes,vis)
         #print(features)
         # # display the bbox
         #for f in range(old_count):
@@ -299,8 +311,7 @@ def classifyVideo(rawVideo):
           for feat in new_FList:
             cv2.circle(vis, tuple(feat.astype(np.int32)), 2, (0,0,255), thickness=-1)
         """
-        #print("BBOXES",old_bboxes)
-        drawArrow(old_count,old_bboxes,old_classes,vis)
+        
         #save frame   
         frame_old=frame.copy()
         # save to list
