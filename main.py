@@ -44,8 +44,6 @@ predictor = DefaultPredictor(cfg)
 # tracks motion by the centers of mass of the masks
 def drawArrow(obj_idx,curr_idx,old_coords,prev_coords,old_bboxes,prev_bboxes,old_classes,prev_classes,vis,W,H):
     # a bit confusing: old is the current frame, prev is the previous frame
-    minbound=0.3*(W/2)
-    maxbound=(W/2)+(0.3*(W/2))
     
     for i in curr_idx:
         if old_classes[i]!= 3 and old_classes[i]!=9:
@@ -55,32 +53,46 @@ def drawArrow(obj_idx,curr_idx,old_coords,prev_coords,old_bboxes,prev_bboxes,old
             print(old_classes)
             print(prev_classes)
             print(obj_idx)
+        # find the center of mass of the object's mask
         curr_mask = generateMaskWithCoordinates(old_coords[i],W,H)
-        curr_bb=old_bboxes.astype(float)[i]
         start = center_of_mass(curr_mask)
         start = start[::-1]
+        
+        # find the center of mass of the same object in the previous frame
         prev_mask = generateMaskWithCoordinates(prev_coords[obj_idx[i]],W,H)
-        prev_bb=prev_bboxes.astype(float)[obj_idx[i]]
         prev_start = center_of_mass(prev_mask)
         prev_start = prev_start[::-1]
         if (np.isnan(start).any()) or (np.isnan(prev_start).any().any()):
             continue
+        
+        
+    
+        # also find the bounding boxes to draw rectangles later
+        curr_bb=old_bboxes.astype(float)[i]
+        prev_bb=prev_bboxes.astype(float)[obj_idx[i]]
+        curr_bb=curr_bb.reshape(4,1)
+        prev_bb=prev_bb.reshape(4,1)
+        
+        # older method using bounding box midpoints
         # sum=np.sum(curr_mid)
         # prev_sum = np.sum(prev_mid)
         # if np.isnan(sum) or np.isnan(prev_sum):
         #     continue
-        curr_bb=curr_bb.reshape(4,1)
-        prev_bb=prev_bb.reshape(4,1)
-        # find box's midpoints
-        # start=(int((curr_mid[2]+curr_mid[0])/2),int((curr_mid[3]+curr_mid[1])/2))
-        # prev_start=(int((prev_mid[2]+prev_mid[0])/2),int((prev_mid[3]+prev_mid[1])/2))
+        ## find box's midpoints
+        # start=(int((curr_mid[2]+curr_bb[0])/2),int((curr_bb[3]+curr_bb[1])/2))
+        # prev_start=(int((prev_bb[2]+prev_bb[0])/2),int((prev_bb[3]+prev_bb[1])/2))
+        
+        # find arrow properties
         # angle between their centers
         arrow_angle = np.arctan2(start[1]-prev_start[1],start[0]-prev_start[0])
         # magnitude of the change
         mag = np.linalg.norm([start[1]-prev_start[1],start[0]-prev_start[0]])
         line_length = 30#mag*6
         endpoint=(int(line_length*math.cos(arrow_angle))+start[0],int(line_length*math.sin(arrow_angle))+start[1])
-        # endpoint = (prev_start[0],prev_start[1])
+        
+        # find where the current trajectory intersects with the bottom of the image
+        minbound=0.3*(W/2)          # the segment at the bottom where intersects are collisions
+        maxbound=(W/2)+(0.3*(W/2))
         x_curr=start[0]
         y_curr=start[1]
         x_prev=prev_start[0]
@@ -93,7 +105,7 @@ def drawArrow(obj_idx,curr_idx,old_coords,prev_coords,old_bboxes,prev_bboxes,old
         b=y_curr-(slope*x_curr)
         intersect_loc_x=(H-b)/slope#(slope*line_y)+b
         cv2.rectangle(vis, (int(curr_bb[0]),int(curr_bb[1])), (int(curr_bb[2]),int(curr_bb[3])), (0,100,100), 3) 
-        new_start = tuple([int(_) for _ in start])
+        new_start = tuple([int(_) for _ in start])     # no good way to turn tuples of floats into tuples of integers for some reason
         new_end =   tuple([int(_) for _ in endpoint])
         if intersect_loc_x > minbound and intersect_loc_x < maxbound and y_prev<y_curr:
             cv2.arrowedLine(vis,new_start,new_end,(0,0,255),2)
@@ -103,6 +115,7 @@ def drawArrow(obj_idx,curr_idx,old_coords,prev_coords,old_bboxes,prev_bboxes,old
 
 def object_track(old_classes,prev_classes,old_coords,prev_coords,W,H):
     # outputs indexing for the previous frame's matches to the current frame's
+    # by comparing the distance of centers of mass
     # usage: curr_thing[curr_idx[i]] is the same object as prev_thing[prev_idx[curr_idx[i]]]
     idx = np.zeros_like(old_classes) + 99999
     curr_idx = []
