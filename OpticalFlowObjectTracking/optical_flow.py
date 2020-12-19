@@ -248,14 +248,18 @@ def extractNonZeroFeature(featureList):
     nonZeroFeatureNum=nonZero_feature.shape[0]
     return nonZeroFeatureNum,nonZero_feature
 
-def transformMask(initFeatureNum,frame,frame_old,all_featNum,all_features,all_bboxes,all_coords,all_classes,features,old_bbox,old_coord,old_classes,H,W,N):
+
+def transformMask(initFeatureNum,frame,frame_old,all_featNum,all_features,all_bboxes,all_coords,all_classes,all_id,features,old_bbox,old_coord,old_classes,id,H,W,N):
     print("Transform mask: feature points",all_features.shape)
     tmp_new_features=estimateAllTranslation(features,frame_old,frame)
     tmp_new_features=np.where(tmp_new_features<0,0,tmp_new_features)
     old_coord=old_coord.reshape(H*W,2)
     tmp_features, bbox, coord = applyGeometricTransformation(features,tmp_new_features,old_bbox,old_coord,H,W,N)
     tmp_features=np.where(tmp_features<0,0,tmp_features)
-    add,initFeatureNum,tmp_features,bbox, eraseObject=generateMoreFeatures(initFeatureNum,frame, tmp_features,old_bbox,bbox,W,H)
+    sum=np.sum(bbox)
+    if np.isnan(sum):
+      bbox=old_bbox
+    add,initFeatureNum,tmp_features,bbox, coord,eraseObject=generateMoreFeatures(initFeatureNum,frame, tmp_features,old_bbox,bbox,old_coord,coord,W,H,N)
     if add==True:
       print("ALLFEAT",all_features.shape, tmp_features.shape)
       all_features=np.append(all_features,tmp_features.reshape(1,N,2))
@@ -263,13 +267,16 @@ def transformMask(initFeatureNum,frame,frame_old,all_featNum,all_features,all_bb
       all_coords=np.append(all_coords,coord)
       all_classes.append(old_classes)
       all_featNum.append(initFeatureNum)
-    return all_featNum,all_features,all_bboxes,coord,all_coords,all_classes, eraseObject
+      all_id=np.append(all_id,id)
+    return all_featNum,all_features,all_bboxes,coord,all_coords,all_classes, all_id,eraseObject
 
-def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,W,H):
+
+def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,old_coord,coord,W,H,N):
   """
   delete bbox if the object disappears 
   if the features are less than the 60% of the initial number of features, new features will be generated
   """
+  print("Fixed")
   new_FListNum,new_FList=extractFeaturefromFeatures(new_features.reshape(1,-1,2))
   remainNumOfFList, remainFList=extractNonZeroFeature(new_FList)
   old_bbox=old_bbox.reshape(1,2,2)
@@ -277,28 +284,45 @@ def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,W,H):
   x=initFeatureNum
   eraseObject=False
   print("feature number",initFeatureNum)
-  if remainNumOfFList < initFeatureNum * 0.6:
+  if remainNumOfFList < 3 or initFeatureNum==1 or (bbox==old_bbox).all():
       print("****** bbox lost****")
-      eraseObject=True
+      if (bbox==old_bbox).all():
+        coord=old_coord
+      #eraseObject=True
       #temporary: not going to generate new bounding box
-      return False, x, new_features,bbox, eraseObject
+      #return False, x, new_features,bbox, eraseObject
       print("BBOX shape,",bbox.shape)
       bbox_w=bbox[1,0]-bbox[0,0]
       bbox_h=bbox[1,1]-bbox[0,1]
       print("BBOX\n",bbox, bbox_w,bbox_h)
       if bbox_w<10 or bbox_h <10:
         print("bbox too small")
-        return False, x, new_features, bbox, eraseObject
+        eraseObject=True
+        return False, x, new_features, bbox, old_coord, eraseObject
       elif bbox[1,0]==W or bbox[1,1]==H:
         print("bbox out of bound")
-        return False, x, new_features, bbox, eraseObject
+        eraseObject=True
+        return False, x, new_features, bbox, old_coord, eraseObject
       elif bbox[0,0]==0 or bbox[0,1]==0:
         print("bbox out of bound")
-        return False, x, new_features, bbox, eraseObject
+        eraseObject=True
+        return False, x, new_features, bbox, old_coord, eraseObject
       #use old bbox to generate new features
       x,new_features = getFeatures(frame, old_bbox,N)
+      x=x[0]
+      print("new features generated",new_features, x)
+      if x==1:
+        print("tried regenerating feature points but only 1 feature was returned")
+        eraseObject=True
+        return False, x, new_features, bbox, old_coord, eraseObject
+      new_FListNum,new_FList=extractFeaturefromFeatures(new_features.reshape(1,-1,2))
+      remainNumOfFList, remainFList=extractNonZeroFeature(new_FList)
+      if remainNumOfFList==0:
+        print("all new features are zeros")
+        eraseObject=True
+        return False, x, new_features, bbox, old_coord, eraseObject
 
-  return True, x, new_features, bbox, eraseObject
+  return True, x, new_features, bbox, coord, eraseObject
 
 def generateMaskWithCoordinates(mask_coords,W,H):
   """
@@ -384,3 +408,25 @@ def transformMask2(initFeatureNum,frame,frame_old,all_featNum,all_features,all_b
       all_featNum.append(initFeatureNum)
     return all_featNum,all_features,all_bboxes,coord,all_coords,all_classes, eraseObject
 
+def getCarAndHuman(masks,bboxes,classes,count,last_id,N,H,W):
+  """
+  Extract car's and human's masks, bboxes, and classes from given set
+  """
+  new_count=0
+  mask=np.array([])
+  bbox=np.array([])
+  class_array=np.array([])
+  id=np.array([])
+  init_id=last_id
+  for i in range(count):
+    if classes[i]!=3 and classes[i]!=9:
+      continue
+    new_count+=1
+    mask=np.append(mask,masks[i])
+    bbox=np.append(bbox,bboxes[i])
+    class_array=np.append(class_array,classes[i])
+    init_id+=1
+    id=np.append(id,init_id) 
+  mask=mask.reshape(new_count,H,W)
+  bbox=bbox.reshape(new_count,2,2)
+  return mask, bbox, class_array, new_count, id
