@@ -385,7 +385,7 @@ def classifyVideo(rawVideo):
             #print("BBOXES",old_bboxes)
             # draw the arrows and bounding boxes
             drawArrow(id_list,prev_id_list,old_coords,prev_coords,old_bboxes,prev_bboxes,old_classes,prev_classes,vis,W,H)
-            print("########save done for frame",frame_cnt,"###########")
+            print("######## save done for frame",frame_cnt,"###########")
         #print(features)
         print('ID List',id_list)
 

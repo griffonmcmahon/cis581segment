@@ -21,7 +21,7 @@ Also, ensure you have the Python packages listed in requirements.txt. Note that,
 
 	For example:  
 
-		$ python main.py Easy.mp4  
+		$ python main.py bdd4.mp4  
 	Currently, we only support using .mp4's as inputs.  
 	
 4. The output frames and videos can be found in the "optresults" directory.
@@ -32,7 +32,7 @@ Also, ensure you have the Python packages listed in requirements.txt. Note that,
 * ./input_videos/: Contains .mp4 files to run the script with. We recommend "Easy.mp4".
 * ./model/: Contains the neural network model used to make predictions. Must be downloaded as noted in "Installation".
 * ./output_videos/: Contains a folder for each video given to the script. 
-	For example, the results from running the script on Easy.mp4 will be stored in "./output_videos/Easy/". **All result videos are stored as .mp4 files in these folders.** "Output.mp4" will be the trajectory predictions, while "Output_path.mp4" will be the trajectory history video.
+	For example, the results from running the script on bdd4.mp4 will be stored in "./output_videos/bdd4/". **All result videos are stored as .mp4 files in these folders.** "Output.mp4" will be the trajectory predictions, while "Output_path.mp4" will be the trajectory history video.
 * helpers.py: Contains helper functions for optical flow.
 * main.py: The main part of the script. Run this to use the script.
 * optical_flow.py: Contains most of the optical flow code converted from Project 4.5.
