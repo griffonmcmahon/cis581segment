@@ -103,6 +103,9 @@ def drawArrow(id_list,prev_id_list,old_coords,prev_coords,old_bboxes,prev_bboxes
         # find arrow properties
         # angle between their centers
         arrow_angle = np.arctan2(slope,1) # slope works here
+        # also determine direction using the x position
+        if (x[0] < np.mean(x[1:])):
+            arrow_angle += np.pi
         # magnitude of the change
         line_length = 30
         endpoint=(int(line_length*math.cos(arrow_angle))+start[0],int(line_length*math.sin(arrow_angle))+start[1])
@@ -343,7 +346,7 @@ def classifyVideo(rawVideo):
                     all_count+=1
             
             print("Count",all_count)
-            print("########save frame",frame_cnt,"###########")
+            print("######## save frame",frame_cnt,"###########")
             
             # save the results of the previous frame needed for arrow drawing
             if (frame_cnt < 10): # just append if still early
