@@ -35,5 +35,7 @@ Also, ensure you have the Python packages listed in requirements.txt. Note that,
 * optical_flow.py: Contains most of the optical flow code converted from Project 4.5.
 * requirements.txt: Contains a list of Python packages that must be installed.
 
+### Real-Time Code
+To test our code for real-time object detection and homography, see the readme inside the Realtime_Code folder.
 ### Unexpected Issues?
 Please email one of us if there are package issues or crashes.
