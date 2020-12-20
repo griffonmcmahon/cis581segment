@@ -81,15 +81,6 @@ def drawArrow(id_list,prev_id_list,old_coords,prev_coords,old_bboxes,prev_bboxes
             if (np.isnan(tmp_start).any()):
                 continue
             prev_start.append(tmp_start)
-            
-            # older method using bounding box midpoints
-            # sum=np.sum(curr_mid)
-            # prev_sum = np.sum(prev_mid)
-            # if np.isnan(sum) or np.isnan(prev_sum):
-            #     continue
-            ## find box's midpoints
-            # start=(int((curr_mid[2]+curr_bb[0])/2),int((curr_bb[3]+curr_bb[1])/2))
-            # prev_start=(int((prev_bb[2]+prev_bb[0])/2),int((prev_bb[3]+prev_bb[1])/2))
         
         # print(prev_start)
         if (len(prev_start) == 0):
@@ -109,25 +100,16 @@ def drawArrow(id_list,prev_id_list,old_coords,prev_coords,old_bboxes,prev_bboxes
         
         # find arrow properties
         # angle between their centers
-        # arrow_angle = np.arctan2(start[1]-prev_start[1],start[0]-prev_start[0])
         arrow_angle = np.arctan2(slope,1) # slope works here
         # magnitude of the change
-        line_length = 30#mag*6
+        line_length = 30
         endpoint=(int(line_length*math.cos(arrow_angle))+start[0],int(line_length*math.sin(arrow_angle))+start[1])
         
         # find where the current trajectory intersects with the bottom of the image
-        minbound=0.3*(W/2)          # the segment at the bottom where intersects are collisions
-        maxbound=(W/2)+(0.3*(W/2))
-        # x_curr=start[0]
-        # y_curr=start[1]
-        # x_prev=prev_start[0]
-        # y_prev=prev_start[1]
-        # if (x_curr-x_prev==0):
-        #     x_curr+=0.0000001
-        # if (y_curr-y_prev==0):
-        #     y_curr+=0.0000001
-        # slope=((y_curr-y_prev)/(x_curr-x_prev))
-        # b=y_curr-(slope*x_curr)
+        # the segment at the bottom where intersects are collisions
+        minbound=0.3*(W/2)              # left area of boundary
+        maxbound=(W/2)+(0.3*(W/2))      # right area of boundary
+
         intersect_loc_x=(H-b)/slope#(slope*line_y)+b
         cv2.rectangle(vis, (int(curr_bb[0]),int(curr_bb[1])), (int(curr_bb[2]),int(curr_bb[3])), (0,100,100), 3) 
         new_start = tuple([int(_) for _ in start])     # no good way to turn tuples of floats into tuples of integers for some reason
@@ -138,35 +120,6 @@ def drawArrow(id_list,prev_id_list,old_coords,prev_coords,old_bboxes,prev_bboxes
             cv2.arrowedLine(vis,new_start,new_end,(0,255,0),2)
     return vis
 
-def object_track(old_classes,prev_classes,old_coords,prev_coords,W,H):
-    # outputs indexing for the previous frame's matches to the current frame's
-    # by comparing the distance of centers of mass
-    # usage: curr_thing[curr_idx[i]] is the same object as prev_thing[prev_idx[curr_idx[i]]]
-    idx = np.zeros_like(old_classes) + 99999
-    curr_idx = []
-    # look at the current object...
-    for i in range(len(old_classes)):
-        curr_mask = generateMaskWithCoordinates(old_coords[i],W,H)
-        curr_com = np.array(center_of_mass(curr_mask))
-        best_dist = 99999
-        # ...and try to match them to all of the old ones
-        for j in range(len(prev_classes)):
-            # but make sure they're the same class first
-            if (old_classes[i] != prev_classes[j]):
-                continue
-            prev_mask = np.array(generateMaskWithCoordinates(prev_coords[j],W,H))
-            #intersect = np.sum(np.logical_and(curr_mask,prev_mask))
-            prev_com = np.array(center_of_mass(prev_mask))
-            dist = np.linalg.norm(curr_com-prev_com)
-            # see if it overlaps better than another one
-            if (dist < best_dist):
-                best_dist = dist
-                idx[i] = j
-        # make sure an actual match was found
-        if (best_dist != 99999): # the bestIntersect isn't zero anymore
-            curr_idx.append(i)
-            
-    return idx,curr_idx
 
 # tracks and classifies objects
 def classifyVideo(rawVideo):
@@ -201,10 +154,6 @@ def classifyVideo(rawVideo):
     #max number of features you will extract
     N=5
 
-    #Lucas Kanade param #TODO: look into deleting this
-    lk_params = dict( winSize  = (11,11),
-                  maxLevel = 2,
-                  criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
     #variables
     old_classes=np.array([])
     old_count=0
@@ -218,16 +167,13 @@ def classifyVideo(rawVideo):
     while (cap.isOpened()):
         ret, frame = cap.read()
         if not ret: break
-        #rotate the video frame 
-        #
-        #frame=np.rot90(frame)
+
         #writing video on vis
         vis = frame.copy() 
         #frames used for feature translation
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255 
         frame_cnt += 1
-        #if frame_cnt<230:
-          #continue
+
         H,W = vis.shape[0],vis.shape[1]
 
         outputs = predictor(vis)
@@ -278,6 +224,7 @@ def classifyVideo(rawVideo):
             all_featNum=[]
             all_id=np.array([])
     
+            # get current NN prediction
             bboxes=outputs["instances"].to("cpu").pred_boxes.tensor.numpy()
             num=bboxes.shape[0]
             bboxes=bboxes.reshape(num,2,2)
@@ -293,6 +240,9 @@ def classifyVideo(rawVideo):
             print("ALL classes",all_classes)
             print("old count",old_count," and count",newcount)
             print("old classes",old_classes)
+            
+            # look at all the previous predictions (NN and optical flow)
+            # and determine if any optical flow needs to be applied to fix it
             for k in range(old_count):
                 # print(count[0],"running:",k)
                 cnt=0
@@ -318,7 +268,6 @@ def classifyVideo(rawVideo):
                     if new_classes[j] != 3 and new_classes[j] !=9:
                         continue
                     class_num=new_classes[j]
-                    #mask=outputs["instances"].to("cpu").pred_masks.numpy()[j].astype(int)*(j+1)
                     # print("DICT",dictC )
                     # print("Class Num:",class_num,type(class_num))
                     # print("get",dictC.get(class_num.item())," K",k)
@@ -331,6 +280,7 @@ def classifyVideo(rawVideo):
                         # print("InterNum ",interNum," old maskNum ",maskNum, "new maskNum",newmaskNum)
                         if maskNum==0:
                             continue
+                        # check for a mask with sizable overlap
                         if interNum>=0.7*maskNum:
                             # print("masks match")
                             # print("matching id",id_list[k])
@@ -387,10 +337,6 @@ def classifyVideo(rawVideo):
             
             print("Count",all_count)
             print("########save frame",frame_cnt,"###########")
-            # bboxes=outputs["instances"].to("cpu").pred_boxes.tensor.numpy()
-            # num=bboxes.shape[0]
-            # bboxes=bboxes.reshape(num,2,2)
-            # masks=outputs["instances"].to("cpu").pred_masks.numpy()
             
             # save the results of the previous frame needed for arrow drawing
             if (frame_cnt < 10): # just append if still early
@@ -420,24 +366,18 @@ def classifyVideo(rawVideo):
             id_list = all_id.copy()
             old_classes = all_classes.copy()
             
-        
             # reshaping coordinates, bboxes, features
             old_coords=old_coords.reshape((old_count,H*W,2))
             old_bboxes=old_bboxes.reshape((old_count,2,2))
             features=features.reshape((old_count,N,2))
             
-            # determine which objects in which classes array are the same
-            # obj_idx,curr_idx = object_track(old_classes,prev_classes,old_coords,prev_coords,W,H)
             
             #print("BBOXES",old_bboxes)
+            # draw the arrows and bounding boxes
             drawArrow(id_list,prev_id_list,old_coords,prev_coords,old_bboxes,prev_bboxes,old_classes,prev_classes,vis,W,H)
-            #drawArrow(obj_idx,curr_idx,old_coords,prev_coords,old_bboxes,prev_bboxes,old_classes,prev_classes,vis,W,H)
             print("########save done for frame",frame_cnt,"###########")
         #print(features)
         print('ID List',id_list)
-        # # display the bbox
-        #for f in range(old_count):
-        #cv2.rectangle(vis, tuple(old_bboxes[0,0].astype(np.int32)), tuple(old_bboxes[0,1].astype(np.int32)), (0,0,255), thickness=2)
 
         
         #save frame   
