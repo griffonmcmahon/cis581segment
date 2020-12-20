@@ -15,6 +15,8 @@ Lastly, specify the output location, where you would like the output video to be
 
 Then run the notebook(processing time for this video should be around 41 seconds)
 
+If the last section of code gives an error after running, try running again as it should work on the second run.
+
 #### Real Time Object Detection
 To run the real time object detection, download Realtime_Image_Segmentation.ipynb and upload it to google drive.  Then open it using Colab.
 From there, specify the location of the outputfil.pth file on your google drive in the code(box 6 in the ipynb notebook).  If you have 
@@ -25,3 +27,5 @@ Next set your input video location.  The .mp4 file named 320_240_vid.mp4 in this
 Lastly, specify the output location, where you would like the output video to be saved.
 
 Then run the notebook(processing time for this video should be around 41 seconds)
+
+If the last section of code gives an error after running, try running again as it should work on the second run.
