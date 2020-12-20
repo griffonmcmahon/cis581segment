@@ -6,8 +6,8 @@ This program will apply image segmentation enhanced with optical flow to the fir
 You can find the GitHub repository for our code at [this link](https://github.com/griffonmcmahon/cis581segment).
 
 ### Installation
-Having this folder on your computer is almost enough, but the model used for segmentation must be downloaded from [this Google Drive link](https://drive.google.com/u/1/uc?id=1kq3SmHFd9kNIxelKBt5Q-y_R4xZYf6qs&export=download).
-Click the Download icon in the top right. This should let you download "Highres.pth".
+Having this folder on your computer is almost enough, but the model used for segmentation must be downloaded from [this Google Drive link](https://drive.google.com/u/1/uc?id=1mXQLFDdJbieIQLGIqeju9QdufQpX13j9&export=download).
+Click the Download icon in the top right. This should let you download "outputfile.pth".
 Place Highres.pth in the "./model/" folder.
 
 Also, ensure you have the Python packages listed in requirements.txt. Note that, as this project uses Detectron2, **running on Linux or OS X is recommended**.
