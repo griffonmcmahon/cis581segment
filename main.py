@@ -442,6 +442,7 @@ def classifyVideo(rawVideo):
     # Release video reader and video writer
     cap.release()
     writer.release()
+    path_writer.release()
     
     return
 
