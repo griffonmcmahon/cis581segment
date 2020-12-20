@@ -223,3 +223,11 @@ def edgeLink(M, Mag, Ori, low, high):
     return edgeMap.astype(bool)
 
 #optical flow functions
+
+# path drawing functions #
+def drawPoints(img,x,y,color):
+    x, y = x.reshape(-1).astype(np.int32),y.reshape(-1).astype(np.int32)
+    for i in range(x.size):
+        point = (x[i],y[i])
+        cv2.circle(img,point,2,color,2)
+

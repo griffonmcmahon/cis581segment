@@ -25,6 +25,7 @@ from detectron2.utils.visualizer import Visualizer
 from detectron2.engine import DefaultPredictor
 from detectron2.data import MetadataCatalog
 import random
+from helpers import drawPoints
 
 
 import logging
