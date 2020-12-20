@@ -146,12 +146,14 @@ def classifyVideo(rawVideo):
     colors = [tuple(np.random.randint(256, size=3)) for _ in range(14)]
     # print(len(colors))
     # Initialize video writer for tracking video
-    trackVideo = './output_videos/'+out_folder+'Output2.mp4'
+    trackVideo = './output_videos/'+out_folder+'Output.mp4'
+    path_trackVideo = './output_videos/'+out_folder+'Output_path.mp4'
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     fps = cap.get(cv2.CAP_PROP_FPS)
     size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     #size = (int(cap.get(360)), int(cap.get(480)))
     writer = cv2.VideoWriter(trackVideo, fourcc, fps, size)
+    path_writer = cv2.VideoWriter(path_trackVideo, fourcc, fps, size)
 
     #max number of features you will extract
     N=5
@@ -430,7 +432,7 @@ def classifyVideo(rawVideo):
         #if (frame_cnt + 1) % 2 == 0:
         cv2.imwrite('./output_videos/'+out_folder+'{}_2.jpg'.format(frame_cnt), img_as_ubyte(vis))
         
-        writer.write(path_draw_frame)
+        path_writer.write(path_draw_frame)
         cv2.imwrite('./output_videos/'+out_folder+'{}_trace.jpg'.format(frame_cnt), path_draw_frame)
         # Save video
         writer.write(vis)
