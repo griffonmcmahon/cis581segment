@@ -32,8 +32,8 @@ def applyGeometricTransformation(features, new_features, bbox, coord, H, W, N):
     nonZeroFListNum,nonZeroFList=extractNonZeroFeature(FList)
     tmp_bbox = np.reshape(bbox,(2,-1))
     idx_range=new_nonZeroFListNum
-    print("Similarity Transform")
-    print("Before transforming: Non zero ",nonZeroFList,"New non zero",new_nonZeroFList, "Bbox:",tmp_bbox)
+    # print("Similarity Transform")
+    # print("Before transforming: Non zero ",nonZeroFList,"New non zero",new_nonZeroFList, "Bbox:",tmp_bbox)
     transform = SimilarityTransform()
     transformation=transform.estimate(nonZeroFList,new_nonZeroFList)
     
@@ -79,7 +79,7 @@ def applyGeometricTransformation(features, new_features, bbox, coord, H, W, N):
         new_tmp_bbox_y2=tmp_bbox[1][1]
         if new_nonZeroFList[idx][0] < new_tmp_bbox_x1 or new_nonZeroFList[idx][1]<new_tmp_bbox_y1 or new_nonZeroFList[idx][0]>new_tmp_bbox_x2 or new_nonZeroFList[idx][1]>new_tmp_bbox_y2:
             new_nonZeroFList[idx]=[0,0]
-    print("After Transformation: Nonzero ",new_nonZeroFList,"BBox ", tmp_bbox)
+    # print("After Transformation: Nonzero ",new_nonZeroFList,"BBox ", tmp_bbox)
     new_bbox=new_tmp_bbox.reshape(1,2,2)
     features_fillzeros=np.zeros((FListNum,2))
 
@@ -261,7 +261,7 @@ def transformMask(initFeatureNum,frame,frame_old,all_featNum,all_features,all_bb
       bbox=old_bbox
     add,initFeatureNum,tmp_features,bbox, coord,eraseObject=generateMoreFeatures(initFeatureNum,frame, tmp_features,old_bbox,bbox,old_coord,coord,W,H,N)
     if add==True:
-      print("ALLFEAT",all_features.shape, tmp_features.shape)
+      # print("ALLFEAT",all_features.shape, tmp_features.shape)
       all_features=np.append(all_features,tmp_features.reshape(1,N,2))
       all_bboxes=np.append(all_bboxes,bbox)
       all_coords=np.append(all_coords,coord)
@@ -291,10 +291,10 @@ def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,old_coo
       #eraseObject=True
       #temporary: not going to generate new bounding box
       #return False, x, new_features,bbox, eraseObject
-      print("BBOX shape,",bbox.shape)
+      # print("BBOX shape,",bbox.shape)
       bbox_w=bbox[1,0]-bbox[0,0]
       bbox_h=bbox[1,1]-bbox[0,1]
-      print("BBOX\n",bbox, bbox_w,bbox_h)
+      # print("BBOX\n",bbox, bbox_w,bbox_h)
       if bbox_w<10 or bbox_h <10:
         print("bbox too small")
         eraseObject=True
@@ -310,7 +310,7 @@ def generateMoreFeatures(initFeatureNum,frame,new_features,old_bbox,bbox,old_coo
       #use old bbox to generate new features
       x,new_features = getFeatures(frame, old_bbox,N)
       x=x[0]
-      print("new features generated",new_features, x)
+      # print("new features generated",new_features, x)
       if x==1:
         print("tried regenerating feature points but only 1 feature was returned")
         eraseObject=True
@@ -343,7 +343,7 @@ def generateAllMasksWithCoordinates(all_mask_coords,W,H):
   generate all masks (H,W) by filling ones to given mask coordinates 
   """
   numOfmasks=all_mask_coords.shape[0]
-  print("ALL coords",all_mask_coords.shape)
+  # print("ALL coords",all_mask_coords.shape)
   masks=[]
   for i in range(numOfmasks):
       new_mask=np.zeros((H,W))
