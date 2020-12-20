@@ -1,5 +1,7 @@
+Python ≥ 3.6
+PyTorch ≥ 1.5 and torchvision
 Detectron2 : https://detectron2.readthedocs.io/tutorials/install.html
 	If on Windows, then this guide allows for installation of Detectron2: https://medium.com/@dgmaxime/how-to-easily-install-detectron2-on-windows-10-39186139101c
 cv2
 pyyaml
-torch
+skimage (pip3 install scikit-image)
