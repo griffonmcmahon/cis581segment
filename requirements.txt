@@ -5,3 +5,4 @@ Detectron2 : https://detectron2.readthedocs.io/tutorials/install.html
 cv2
 pyyaml
 skimage (pip3 install scikit-image)
+sklearn
