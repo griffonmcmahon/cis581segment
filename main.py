@@ -24,6 +24,7 @@ from detectron2.config import get_cfg
 from detectron2.utils.visualizer import Visualizer
 from detectron2.engine import DefaultPredictor
 from detectron2.data import MetadataCatalog
+import random
 
 
 import logging
@@ -213,6 +214,8 @@ def classifyVideo(rawVideo):
     initNF=[]
     id_list=np.array([])
     count=0
+    path_draw_dict = {}
+    path_draw_color_dict = {}
 
 
     while (cap.isOpened()):
@@ -222,6 +225,7 @@ def classifyVideo(rawVideo):
         #
         #frame=np.rot90(frame)
         #writing video on vis
+        path_draw_frame = frame.copy()
         vis = frame.copy() 
         #frames used for feature translation
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255 
@@ -439,6 +443,42 @@ def classifyVideo(rawVideo):
         #for f in range(old_count):
         #cv2.rectangle(vis, tuple(old_bboxes[0,0].astype(np.int32)), tuple(old_bboxes[0,1].astype(np.int32)), (0,0,255), thickness=2)
 
+        ### path drawing starts ###
+        
+        list_index = 0
+
+        ids_that_disappeared = []
+        for key in path_draw_dict.keys():
+          if key not in id_list:
+            ids_that_disappeared.append(key)
+        
+        for id in ids_that_disappeared:
+          del path_draw_dict[id]
+
+        for box in old_bboxes: 
+          mid_x = box[0][0] + (box[1][0] - box[0][0])/2
+          mid_y = box[0][1] + (box[1][1] - box[0][1])/2
+          curr_id = id_list[list_index]
+          new_coords = [mid_x, mid_y]
+          if curr_id in path_draw_dict:
+            path_draw_dict[curr_id].append(new_coords)
+          else: 
+            path_draw_dict[curr_id] = [new_coords]
+          list_index = list_index + 1
+
+        for key in path_draw_dict.keys():
+          for coords in path_draw_dict[key]:
+            if key in path_draw_color_dict:
+              color = path_draw_color_dict[key]
+            else:
+              ran1 = random.randrange(256)
+              ran2 = random.randrange(256)
+              ran3 = random.randrange(256)
+              color = [ran1,ran2,ran3]
+              path_draw_color_dict[key] = color
+
+            drawPoints(path_draw_frame, coords[0], coords[1],color)
+        ### path drawing ends ###
         
         #save frame   
         frame_old=frame.copy()
@@ -449,6 +489,8 @@ def classifyVideo(rawVideo):
         #if (frame_cnt + 1) % 2 == 0:
         cv2.imwrite('./output_videos/'+out_folder+'{}_2.jpg'.format(frame_cnt), img_as_ubyte(vis))
         
+        writer.write(path_draw_frame)
+        cv2.imwrite('./output_videos/'+out_folder+'{}_trace.jpg'.format(frame_cnt), path_draw_frame)
         # Save video
         writer.write(vis)
         if (frame_cnt==100):
