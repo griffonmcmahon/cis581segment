@@ -1,0 +1,1 @@
+Please drop any .pth files obtained from the Google Drive link in the other readme into this folder.
